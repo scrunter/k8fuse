@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: blob.csi.azure.com
+  name: pv-blob-nfs
+spec:
+  capacity:
+    storage: 1Pi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain  
+  storageClassName: azureblob-nfs
+  csi:
+    driver: blob.csi.azure.com
+    readOnly: false
+    # make sure volumeid is unique for every identical storage blob container in the cluster
+    # character `#` is reserved for internal use and cannot be used in volumehandle
+    volumeHandle: ihctestingaks-ihctestnfs
+    volumeAttributes:
+      resourceGroup: rg-testing
+      storageAccount: ihctestingaks
+      containerName: ihctest
+      protocol: nfs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: blob.csi.azure.com
+  name: pv-blob-fuse
+spec:
+  capacity:
+    storage: 1Pi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain  
+  storageClassName: azureblob-fuse
+  mountOptions:
+    - -o allow_other
+    - --file-cache-timeout-in-seconds=120
+    - --use-adls=true # ONLY use this if HNS is enabled (aka datalake)
+  csi:
+    driver: blob.csi.azure.com
+    readOnly: false
+    # volumeid has to be unique for every identical storage blob container in the cluster
+    # character `#` is reserved for internal use and cannot be used in volumehandle
+    volumeHandle: ihctestingaks-ihctestfuse
+    volumeAttributes:
+      resourceGroup: rg-testing
+      storageAccount: ihctestingaks
+      containerName: ihctest
+      protocol: fuse
+      AzureStorageAuthType: MSI
+      # We can hard code the principal id here for demonstration
+      AzureStorageIdentityObjectID: f4ba4664-ba15-4425-8712-2d6c1a467c20
+
+## Alternatively, to secure the principal, use a kubernetes secret (name as per below):
+# See: https://learn.microsoft.com/en-us/azure/aks/azure-csi-blob-storage-provision?tabs=mount-blobfuse%2Csecret
+
+#    nodeStageSecretRef:
+#      name: azure-storage-msi-secret
+#      namespace: default
+
+## Or Use a keyvault to persist the MSI principalid
+
+#    volumeAttributes:
+#      keyVaultURL: https://myvault.vaultcore.windows.net
+#      keyVaultSecretName: msiprincipal
